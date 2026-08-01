@@ -18,8 +18,15 @@ WORKDIR /src
 RUN git clone --depth 1 --branch "${WHISPER_REF}" https://github.com/ggerganov/whisper.cpp.git .
 
 # Static libs so the runtime stage needs only libgomp + libstdc++.
+# GGML_NATIVE=OFF is deliberate. It probes the *build* CPU with -mcpu=native /
+# -march=native, which (a) bakes the builder's instruction set into a published
+# image and (b) breaks outright on the QEMU-emulated arm64 leg, where the probe
+# cannot run and ggml emits an invalid -mcpu=native+nodotprod+noi8mm+nosve.
+# With it off we get the portable baseline: armv8-a on arm64, AVX2/FMA/F16C on
+# x86-64.
 RUN cmake -B build \
         -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_NATIVE=OFF \
         -DBUILD_SHARED_LIBS=OFF \
         -DWHISPER_BUILD_TESTS=OFF \
     && cmake --build build --config Release -j "$(nproc)" \

@@ -99,8 +99,22 @@ jobs:
           PY
           sleep 2
           # 8 kHz mono telephony-style WAV, as 3CX/Yeastar would leave it.
-          ffmpeg -hide_banner -loglevel error -f lavfi \
-            -i "sine=frequency=440:duration=2" -ar 8000 -ac 1 /tmp/voicemail.wav
+          # Written with the stdlib rather than ffmpeg: the runner image no
+          # longer ships ffmpeg, and the container has its own copy anyway.
+          python3 - <<'PY'
+          import math, struct, wave
+
+          RATE, SECONDS, FREQ = 8000, 2, 440
+          frames = b"".join(
+              struct.pack("<h", int(16000 * math.sin(2 * math.pi * FREQ * n / RATE)))
+              for n in range(RATE * SECONDS)
+          )
+          with wave.open("/tmp/voicemail.wav", "wb") as wav:
+              wav.setnchannels(1)
+              wav.setsampwidth(2)
+              wav.setframerate(RATE)
+              wav.writeframes(frames)
+          PY
           HOST_IP=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')
           curl -fsS -X POST http://127.0.0.1:8080/jobs \
             -H "Authorization: Bearer ${TOKEN}" \
