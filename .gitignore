@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+data/
+models/
+*.db
+*.db-wal
+*.db-shm
+secrets.json
+
+# Real configuration holds API_TOKEN / WEBHOOK_SECRET. Only the template is tracked.
+.env
+.env.*
+!.env.example
+
+# Real voicemail samples are personal data — never commit them.
+tests/samples/*
+!tests/samples/README.md
+
+# Internal design spec — kept locally, not published.
+SPEC.md

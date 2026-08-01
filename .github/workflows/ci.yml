@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Unit tests
+        run: pytest -q
+
+  docker-build:
+    # A smoke build of the image on the native runner arch only — the multi-arch
+    # release build lives in release.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (tiny model keeps CI fast)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: echoback:ci
+          build-args: |
+            MODELS=tiny
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot the container and check /health
+        run: |
+          docker run -d --name echoback-ci -p 8080:8080 \
+            -e PORT=8080 -e MODEL_DEFAULT=tiny -e MODEL_ALLOWLIST=tiny \
+            -v echoback_ci_data:/data echoback:ci
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/health; then
+              echo
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8080/health | tee /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+          grep -q '"engine":"ready"' /tmp/health.json
+          grep -q '"model_default":"tiny"' /tmp/health.json
+          docker logs echoback-ci 2>&1 | grep -q "SAVE THESE"
+
+      - name: End-to-end transcription through the real engine
+        run: |
+          set -eux
+          TOKEN=$(docker logs echoback-ci 2>&1 | awk '/API_TOKEN:/ {print $2}')
+          # Bare-bones receiver that records the callback body.
+          python3 - <<'PY' &
+          import http.server, json, pathlib
+
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_POST(self):
+                  body = self.rfile.read(int(self.headers["content-length"]))
+                  pathlib.Path("/tmp/callback.json").write_bytes(body)
+                  pathlib.Path("/tmp/signature").write_text(self.headers["X-Signature"])
+                  self.send_response(200)
+                  self.end_headers()
+
+              def log_message(self, *a):
+                  pass
+
+          http.server.HTTPServer(("0.0.0.0", 9099), Handler).serve_forever()
+          PY
+          sleep 2
+          # 8 kHz mono telephony-style WAV, as 3CX/Yeastar would leave it.
+          ffmpeg -hide_banner -loglevel error -f lavfi \
+            -i "sine=frequency=440:duration=2" -ar 8000 -ac 1 /tmp/voicemail.wav
+          HOST_IP=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')
+          curl -fsS -X POST http://127.0.0.1:8080/jobs \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -F "file=@/tmp/voicemail.wav" \
+            -F "job_ref=ci-smoke" \
+            -F "callback_url=http://${HOST_IP}:9099/resume" | tee /tmp/submit.json
+          grep -q '"status":"queued"' /tmp/submit.json
+          for attempt in $(seq 1 90); do
+            [ -f /tmp/callback.json ] && break
+            sleep 2
+          done
+          cat /tmp/callback.json
+          python3 -c "import json;b=json.load(open('/tmp/callback.json'));assert b['status']=='done',b;assert b['job_ref']=='ci-smoke',b;assert b['text'] is not None"
+          SECRET=$(docker logs echoback-ci 2>&1 | awk '/WEBHOOK_SECRET:/ {print $2}')
+          python3 - "$SECRET" <<'PY'
+          import hashlib, hmac, pathlib, sys
+          secret = sys.argv[1].encode()
+          body = pathlib.Path("/tmp/callback.json").read_bytes()
+          expected = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
+          assert hmac.compare_digest(expected, pathlib.Path("/tmp/signature").read_text()), "signature mismatch"
+          print("signature verified")
+          PY
+
+      - name: Container logs
+        if: always()
+        run: docker logs echoback-ci || true
+
+      - name: Tear down
+        if: always()
+        run: docker rm -f echoback-ci || true

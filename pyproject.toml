@@ -1,0 +1,49 @@
+[project]
+name = "echoback"
+version = "1.0.0"
+description = "Offline voicemail transcription with a signed webhook callback"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+echoback = "echoback.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/echoback"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning:echoback.*"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+# ASYNC240: the files this service touches are voicemail-sized; a blocking stat or
+# unlink on them is cheaper than dragging in an async filesystem layer.
+ignore = ["ASYNC240"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008: call-in-default is how FastAPI declares File/Form/Depends parameters.
+"src/echoback/api.py" = ["B008"]

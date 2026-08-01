@@ -1,0 +1,90 @@
+Third-party components distributed with or used by Echoback
+==========================================================
+
+Echoback itself is MIT-licensed (see LICENSE). The components below are either
+built into the container image or invoked by it. Nothing copyleft is linked into
+Echoback's own code.
+
+| Component                     | License                    | How it is used                          |
+| ----------------------------- | -------------------------- | --------------------------------------- |
+| whisper.cpp                   | MIT                        | Built from source; transcription engine |
+| ggml                          | MIT                        | ML library inside whisper.cpp           |
+| Whisper GGML model weights    | MIT                        | Downloaded at build time, baked in      |
+| FastAPI                       | MIT                        | HTTP framework                          |
+| Starlette                     | BSD-3-Clause               | ASGI toolkit under FastAPI              |
+| uvicorn                       | BSD-3-Clause               | ASGI server                             |
+| httpx                         | BSD-3-Clause               | Outbound webhook client                 |
+| python-multipart              | Apache-2.0                 | Multipart form parsing                  |
+| Python                        | PSF-2.0                    | Runtime                                 |
+| ffmpeg                        | LGPL-2.1+ (GPL if so built)| CLI subprocess only, never linked       |
+
+ffmpeg note
+-----------
+ffmpeg is installed from the Debian package repositories and invoked strictly as
+an external command-line binary (`ffmpeg -i ... -ar 16000 -ac 1 -f wav ...`). It
+is not linked as a library and no ffmpeg source or headers are compiled into
+Echoback, so its LGPL/GPL terms do not extend to this project's MIT-licensed
+code. The ffmpeg licence text ships with the ffmpeg package inside the image at
+/usr/share/doc/ffmpeg/copyright.
+
+
+whisper.cpp and ggml
+--------------------
+Upstream: https://github.com/ggerganov/whisper.cpp
+The image contains the upstream licence text at
+/usr/share/licenses/echoback/whisper.cpp.LICENSE. Reproduced here:
+
+    MIT License
+
+    Copyright (c) 2023-2024 The ggml authors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
+Whisper GGML model weights
+--------------------------
+Upstream: https://huggingface.co/ggerganov/whisper.cpp — converted from OpenAI's
+Whisper models, which are released under the MIT License:
+
+    Copyright (c) 2022 OpenAI
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
+Python dependency licences
+--------------------------
+FastAPI, Starlette, uvicorn, httpx and python-multipart ship their own licence
+files inside their installed distributions in the image, under
+/usr/local/lib/python3.12/site-packages/<dist>-<version>.dist-info/.
