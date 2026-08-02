@@ -69,8 +69,11 @@ COPY src ./src
 # .dockerignore keeps .git out of the context, so hatch-vcs cannot read the tag
 # itself — the release workflow passes the version it derived from that tag.
 # Left at 0.0.0 for local and CI builds, which are not published.
+# Unscoped on purpose: hatch-vcs does not pass the distribution name down to
+# setuptools-scm, so the SETUPTOOLS_SCM_PRETEND_VERSION_FOR_<NAME> form is never
+# consulted. Only this package is built here, so the broad variable is safe.
 ARG VERSION=0.0.0
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ECHOBACK="${VERSION}" \
+RUN SETUPTOOLS_SCM_PRETEND_VERSION="${VERSION}" \
         pip install --no-cache-dir . \
     && rm -rf /root/.cache
 
