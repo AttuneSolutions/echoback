@@ -399,6 +399,26 @@ Run the service locally against real binaries with:
 DATA_DIR=./data MODEL_DIR=./models PORT=8080 .venv/bin/python -m echoback.main
 ```
 
+### Cutting a release
+
+The git tag is the version. Nothing in the tree carries a version number — don't
+go looking for one to bump:
+
+```bash
+git tag -a v1.2.3 -m "Echoback 1.2.3"
+git push origin v1.2.3
+```
+
+That publishes `1.2.3`, `1.2` and `latest` to GHCR for both architectures, stamps
+the version into the package (so `/health` and the webhook `User-Agent` report it),
+and opens the GitHub Release with the pull command and image digest.
+
+`hatch-vcs` derives the version from the tag at build time. The image build is the
+one exception: `.dockerignore` keeps `.git` out of the build context, so the release
+workflow passes the version it read from the tag in as a build argument. Pushes to
+`main` are not releases — they only move `edge` and `sha-<commit>`, and their
+packages are versioned `0.0.0+sha.<commit>`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
