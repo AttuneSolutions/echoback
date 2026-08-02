@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.svg" alt="" width="96" height="96">
+</p>
+
 # Echoback
 
 Offline, self-hosted voicemail-to-text for PBX systems. Send a voicemail file,

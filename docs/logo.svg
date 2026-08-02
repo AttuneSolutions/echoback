@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Echoback">
+  <title>Echoback</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
+
+  <!-- Message bubble with a tail that doubles as the "back" arrow. -->
+  <path fill="#FFFFFF" d="M20 13h24a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H29l-9 8v-8h-2a6 6 0 0 1-6-6V21a8 8 0 0 1 8-8Z"/>
+
+  <!-- Voicemail waveform. -->
+  <g fill="#4F46E5">
+    <rect x="19.25" y="24"   width="3.5" height="8"  rx="1.75"/>
+    <rect x="25.75" y="20"   width="3.5" height="16" rx="1.75"/>
+    <rect x="32.25" y="17"   width="3.5" height="22" rx="1.75"/>
+    <rect x="38.75" y="22"   width="3.5" height="12" rx="1.75"/>
+    <rect x="45.25" y="19"   width="3.5" height="18" rx="1.75"/>
+  </g>
+</svg>
