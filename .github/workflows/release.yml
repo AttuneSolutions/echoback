@@ -45,6 +45,21 @@ jobs:
             type=sha,format=long
             type=edge,branch=main
 
+      # The tag is the only place a version number lives. Untagged builds of main
+      # are not releases, so they get a PEP 440 local version off the commit.
+      - name: Resolve the package version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.0.0+sha.${SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
       # whisper.cpp is compiled for both architectures; the arm64 leg runs under
       # QEMU and is slow. Layer cache keeps repeat builds tolerable.
       - name: Build and push (amd64 + arm64)
@@ -58,6 +73,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             MODELS=small
+            VERSION=${{ steps.version.outputs.value }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha

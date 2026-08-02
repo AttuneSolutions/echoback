@@ -66,7 +66,13 @@ COPY --from=engine /engine/licenses /usr/share/licenses/echoback
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir . && rm -rf /root/.cache
+# .dockerignore keeps .git out of the context, so hatch-vcs cannot read the tag
+# itself — the release workflow passes the version it derived from that tag.
+# Left at 0.0.0 for local and CI builds, which are not published.
+ARG VERSION=0.0.0
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ECHOBACK="${VERSION}" \
+        pip install --no-cache-dir . \
+    && rm -rf /root/.cache
 
 COPY LICENSE THIRD_PARTY_LICENSES /usr/share/licenses/echoback/
 

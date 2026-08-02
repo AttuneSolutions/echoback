@@ -1,6 +1,7 @@
 [project]
 name = "echoback"
-version = "1.0.0"
+# Derived from the git tag by hatch-vcs — see [tool.hatch.version].
+dynamic = ["version"]
 description = "Offline voicemail transcription with a signed webhook callback"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,8 +24,14 @@ dev = [
 echoback = "echoback.main:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+# `git tag -a v1.2.3` is the whole release process. Builds without a readable
+# .git — the Docker image, chiefly — take the version from
+# SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ECHOBACK instead.
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/echoback"]
