@@ -63,6 +63,34 @@ curl -X POST https://voicemail.example.com/jobs \
 
 The transcript is POSTed to your `callback_url` when ready.
 
+### With Compose
+
+[`docker-compose.yml`](docker-compose.yml) is a convenience wrapper around the same
+container — nothing about the service needs it. Configuration comes from `.env`:
+
+```bash
+cp .env.example .env     # edit, then:
+docker compose up -d
+```
+
+Two things worth knowing before you edit that file:
+
+- **`.env` reaches the container only because of the `env_file:` entry.** Compose
+  loads `.env` automatically for `${VAR}` substitution *inside* the compose file;
+  that is a separate mechanism and passes nothing to the container. Values under
+  `environment:` override `.env`, so keep configuration in one place.
+- **Swapping the named volume for a bind mount needs a `chown`.** The image
+  prepares `/data` for uid 10001, but a bind-mounted host directory keeps its own
+  ownership and the container cannot write to it:
+
+  ```
+  PermissionError: [Errno 13] Permission denied: '/data/secrets.tmp'
+  ```
+
+  ```bash
+  mkdir -p ./data && sudo chown -R 10001:10001 ./data
+  ```
+
 ## API
 
 All endpoints require `Authorization: Bearer <API_TOKEN>` except `GET /health`.
@@ -358,6 +386,10 @@ model.
 - The container runs as an unprivileged user (uid 10001) with
   `CAP_NET_BIND_SERVICE` so the default `PORT=80` still binds. If your runtime
   drops capabilities, set `PORT` above 1024.
+- **`DATA_DIR` must be writable by uid 10001.** A named volume inherits that from
+  the image and needs nothing; a bind mount keeps the host directory's ownership
+  and must be `chown 10001:10001`'d first, or boot fails on `secrets.tmp` with
+  `Permission denied`.
 
 ## Development
 

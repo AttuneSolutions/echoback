@@ -13,21 +13,21 @@ services:
       - "8080:80"
     volumes:
       - echoback_data:/data
-    environment:
-      MODEL_DEFAULT: small
-      LOG_LEVEL: info
-      # Public URL your reverse proxy serves this on. Makes status_url absolute and
-      # refuses a callback_url pointing back at this service.
-      # HOST_URL: https://voicemail.example.com
-      # Restrict where results may be POSTed (a leading dot matches subdomains).
-      # Loopback and link-local are always refused; private LAN ranges are allowed.
-      # CALLBACK_ALLOWED_HOSTS: activepieces.internal,.example.com
-      # Default vocabulary hint for jobs that send none (domain vocabulary only —
-      # per-call proper nouns belong in the request's vocabulary_hint field):
-      # VOCABULARY_HINT: "invoice, purchase order, back-order, RMA, dispatch"
-      # Supply your own secrets instead of the generated ones:
-      # API_TOKEN: ...
-      # WEBHOOK_SECRET: ...
+      # Bind mount instead, to keep jobs.db and secrets.json where you can see them.
+      # The host directory keeps its own ownership, so it must be readable and
+      # writable by uid 10001 — the unprivileged user in the image — or startup
+      # fails with `PermissionError: [Errno 13] ... '/data/secrets.tmp'`:
+      #   mkdir -p ./data && sudo chown -R 10001:10001 ./data
+      # - ./data:/data
+    # Configuration lives in .env — copy .env.example to .env and edit there.
+    # Without this line Compose reads .env only for ${VAR} substitution in this
+    # file; it does not pass anything to the container.
+    env_file:
+      - path: .env
+        required: false
+    # Anything set here overrides .env. Prefer .env; use this for one-off pins.
+    # environment:
+    #   LOG_LEVEL: debug
 
 volumes:
   echoback_data:
