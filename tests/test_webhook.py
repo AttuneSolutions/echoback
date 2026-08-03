@@ -157,7 +157,10 @@ async def test_exhausts_five_attempts_then_reports_failure(config: Config) -> No
         return httpx.Response(503)
 
     sleeper = SleepSpy()
-    emitter = WebhookEmitter(config, SECRET, client_factory=client_factory(handler), sleep=sleeper)
+    # Pinned rather than left on the default: this covers exhaustion, not whatever
+    # WEBHOOK_ATTEMPTS happens to ship as.
+    five = dataclasses.replace(config, webhook_attempts=5)
+    emitter = WebhookEmitter(five, SECRET, client_factory=client_factory(handler), sleep=sleeper)
     result = await emitter.deliver(make_job())
 
     assert calls == 5

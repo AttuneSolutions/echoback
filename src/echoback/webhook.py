@@ -85,9 +85,10 @@ class WebhookEmitter:
     """POSTs a job result to its callback URL, retrying with exponential backoff.
 
     Backoff between attempts doubles from ``WEBHOOK_BACKOFF``: with the defaults
-    (5 attempts, base 2s) retries are delayed 2s, 4s, 8s and 16s — 30s of waiting
-    across roughly a minute of wall clock before the job is marked
-    ``callback_failed``.
+    (8 attempts, base 2s) retries are delayed 2s, 4s, 8s, 16s, 32s, 64s and 128s —
+    just over four minutes of wall clock before the job is marked
+    ``callback_failed``. The window is sized to outlast a receiver restarting, not
+    a receiver being down.
     """
 
     def __init__(

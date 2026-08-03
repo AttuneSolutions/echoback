@@ -38,7 +38,7 @@ def test_defaults_match_spec(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.max_upload_bytes == 25 * 1024 * 1024
     assert config.max_queue_depth == 1000
     assert config.retention_minutes == 60
-    assert config.webhook_attempts == 5
+    assert config.webhook_attempts == 8
     assert config.webhook_backoff == 2.0
     assert config.api_token is None
     assert config.webhook_secret is None

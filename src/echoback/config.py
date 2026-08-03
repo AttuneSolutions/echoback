@@ -67,7 +67,7 @@ class Config:
     host_url: str | None = None
     callback_allowed_hosts: tuple[str, ...] = ()
     retention_minutes: int = 60
-    webhook_attempts: int = 5
+    webhook_attempts: int = 8
     webhook_backoff: float = 2.0
     webhook_timeout: float = 15.0
     api_token: str | None = None
@@ -176,7 +176,7 @@ def load_config() -> Config:
         host_url=host_url,
         callback_allowed_hosts=allowed_hosts,
         retention_minutes=_env_int("RETENTION_MINUTES", 60),
-        webhook_attempts=_env_int("WEBHOOK_ATTEMPTS", 5),
+        webhook_attempts=_env_int("WEBHOOK_ATTEMPTS", 8),
         webhook_backoff=_env_float("WEBHOOK_BACKOFF", 2.0),
         webhook_timeout=_env_float("WEBHOOK_TIMEOUT", 15.0),
         api_token=_env_optional("API_TOKEN"),

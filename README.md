@@ -274,11 +274,12 @@ a job becomes `done` when you confirm receipt, not when the transcript is produc
 Redirects are not followed, so a 3xx is treated as a failed attempt, as is any
 4xx/5xx, connection error, or timeout.
 
-**Retries.** A failed attempt is retried up to `WEBHOOK_ATTEMPTS` times — 5 by
-default — with the delay doubling from `WEBHOOK_BACKOFF`: 2s, 4s, 8s, 16s between
-attempts, so five attempts span about a minute. After the last one the job becomes
-`callback_failed`; the transcript stays fetchable from `GET /jobs/{job_id}` until
-the retention window closes.
+**Retries.** A failed attempt is retried up to `WEBHOOK_ATTEMPTS` times — 8 by
+default — with the delay doubling from `WEBHOOK_BACKOFF`: 2s, 4s, 8s, 16s, 32s, 64s
+and 128s between attempts, so eight attempts span just over four minutes. That is
+sized to outlast a receiver restarting, not a receiver being down. After the last
+attempt the job becomes `callback_failed`; the transcript stays fetchable from
+`GET /jobs/{job_id}` until the retention window closes.
 
 **Duplicates.** If the container restarts between your 2xx and the ack being
 recorded, the same result is delivered again. Deduplicate on `job_id`.
@@ -298,16 +299,51 @@ Sign over the **raw request body**, not a re-serialised copy.
 
 ## Activepieces integration
 
-1. Add a step that generates a resume URL and pauses the flow (webhook waitpoint).
-2. In the preceding HTTP step, POST the voicemail to `/jobs`, passing the resume URL
-   as `callback_url`.
-3. The flow resumes with `body.text` as the transcript. Branch on
-   `body.status == "done"`.
+This needs a small custom piece. Nothing on the flow canvas can both mint a resume
+URL and hand you the callback body: the Approval piece's *Wait for Approval*
+discards everything except a query parameter, and *Respond and Wait for Next
+Webhook* only surfaces its resume URL to the caller of a `/sync` webhook. One
+custom action does the whole exchange.
+
+The action runs twice — once to submit, once when the callback resumes it:
+
+1. **Submit.** Create a `WEBHOOK` waitpoint, build its resume URL, POST the
+   voicemail to `/jobs` with that URL as `callback_url`, then pause. Pausing
+   releases the Activepieces worker and stops the wait counting against
+   `AP_FLOW_TIMEOUT_SECONDS`, so a slow queue costs nothing.
+2. **Resume.** Echoback POSTs the result and the run wakes up. Read `job_id` from
+   the callback body and ignore the rest of it.
+3. **Re-fetch.** `GET /jobs/{job_id}` with the API token, and use *that* as the
+   transcript. Raise on any status other than `done` or `transcribed` so the step
+   fails visibly and honours the flow's retry and continue-on-failure settings.
+
+Step 3 is the part worth keeping. The Activepieces resume endpoint is
+unauthenticated by design — the URL *is* the capability — so a body arriving there
+is only as trustworthy as that URL is secret. Re-fetching over the authenticated
+API means a leaked resume URL can wake the flow but cannot dictate what it thinks
+was said. Treat the callback as a doorbell, not a delivery.
+
+Keep the API token in the piece's own connection (`PieceAuth.SecretText`), which
+Activepieces encrypts at rest. The stock HTTP piece cannot do this — OAuth2 is its
+only connection type — so a bearer token configured there would sit in the flow
+JSON in plain text.
+
+Two things to get right before the first run:
+
+- **`AP_FRONTEND_URL` must be the externally reachable URL.** Resume URLs are built
+  from it, and its `localhost` default is loopback, which this service refuses
+  outright with `400 CALLBACK_HOST_NOT_ALLOWED`.
+- **Set `CALLBACK_ALLOWED_HOSTS` to the Activepieces host.** Every resume URL shares
+  one origin, so there is no reason to leave the callback target open.
+
+If delivery fails every attempt the run stays paused until
+`AP_PAUSED_FLOW_TIMEOUT_DAYS` elapses — echoback has stopped trying, and nothing
+will wake it. The transcript is still fetchable until retention closes.
 
 > A known upstream quirk: calling a resume URL after a piece has already failed can
 > let the flow continue past the failed step. Echoback always sends an explicit
-> `status` (and an `error` object on failure), so branch on `body.status == "done"`
-> and treat everything else as the failure path.
+> `status` (and an `error` object on failure), so branch on `status == "done"` and
+> treat everything else as the failure path.
 
 ## Configuration
 
@@ -322,7 +358,7 @@ Sign over the **raw request body**, not a re-serialised copy.
 | `MAX_UPLOAD_MB`     | `25`      | Upload size cap.                                             |
 | `MAX_QUEUE_DEPTH`   | `1000`    | Queue depth at which `POST /jobs` returns 429.               |
 | `RETENTION_MINUTES` | `60`      | How long a completed job row is kept before purge.           |
-| `WEBHOOK_ATTEMPTS`  | `5`       | Max webhook delivery attempts.                               |
+| `WEBHOOK_ATTEMPTS`  | `8`       | Max webhook delivery attempts.                               |
 | `WEBHOOK_BACKOFF`   | `2`       | Base backoff seconds (doubles each attempt).                 |
 | `API_TOKEN`         | generated | Override to supply your own bearer token.                    |
 | `WEBHOOK_SECRET`    | generated | Override to supply your own HMAC secret.                     |

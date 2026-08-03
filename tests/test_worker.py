@@ -233,8 +233,9 @@ async def test_non_2xx_is_retried_and_then_gives_up_without_marking_done(
     config: Config, database: Database, engine: FakeEngine, make_wav
 ) -> None:
     receiver = Receiver(statuses=[500, 302, 404, 500, 418])
+    five = dataclasses.replace(config, webhook_attempts=5)
     enqueue(config, database, make_wav, job_id="job-1")
-    await make_worker(config, database, engine, receiver).run_once()
+    await make_worker(five, database, engine, receiver).run_once()
 
     stored = database.get_job("job-1")
     assert len(receiver.requests) == 5
@@ -371,8 +372,9 @@ async def test_callback_exhaustion_marks_callback_failed_but_keeps_transcript(
     config: Config, database: Database, engine: FakeEngine, make_wav
 ) -> None:
     receiver = Receiver(statuses=[500, 500, 500, 500, 500])
+    five = dataclasses.replace(config, webhook_attempts=5)
     enqueue(config, database, make_wav, job_id="job-1")
-    worker = make_worker(config, database, engine, receiver)
+    worker = make_worker(five, database, engine, receiver)
     await worker.run_once()
 
     stored = database.get_job("job-1")
